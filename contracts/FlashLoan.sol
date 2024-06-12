@@ -75,7 +75,7 @@ contract FlashLoan {
         return amountReceived;
     }
 
-    function initateArbitrage(address _busdBorrow,uint _amount) external{
+    function initateArbitrage(address _usdcBorrow,uint _amount) external{
          IERC20(WETH).safeApprove(address(UNISWAP_ROUTER),MAX_INT);
          IERC20(USDC).safeApprove(address(UNISWAP_ROUTER),MAX_INT);
          IERC20(LINK).safeApprove(address(UNISWAP_ROUTER),MAX_INT);
@@ -86,7 +86,7 @@ contract FlashLoan {
          
          //liquidity pool of USDC and WETH
          address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(
-            _busdBorrow,
+            _usdcBorrow,
             WETH
          );
 
@@ -95,10 +95,10 @@ contract FlashLoan {
          address token0 = IUniswapV2Pair(pair).token0();//WBNB
          address token1 = IUniswapV2Pair(pair).token1();//BUSD
 
-         uint amount0Out = _busdBorrow==token0?_amount:0;
-         uint amount1Out = _busdBorrow==token1?_amount:0; //BUSD Amount
+         uint amount0Out = _usdcBorrow==token0?_amount:0;
+         uint amount1Out = _usdcBorrow==token1?_amount:0; //BUSD Amount
          
-         bytes memory data = abi.encode(_busdBorrow,_amount,msg.sender);
+         bytes memory data = abi.encode(_usdcBorrow,_amount,msg.sender);
          IUniswapV2Pair(pair).swap(amount0Out, amount1Out, address(this), data);
     }
 
@@ -119,7 +119,7 @@ contract FlashLoan {
         require(_sender == address(this), "Sender should match the contract");
 
         // Decode data for calculating the repayment
-        (address busdBorrow, uint256 amount, address myAddress) = abi.decode(
+        (address usdcBorrow, uint256 amount, address myAddress) = abi.decode(
             _data,
             (address, uint256, address)
         );
@@ -146,7 +146,7 @@ contract FlashLoan {
         otherToken.transfer(myAddress, trade2Coin - repayAmount);
 
         // Pay Loan Back
-        IERC20(busdBorrow).transfer(pair, repayAmount);
+        IERC20(usdcBorrow).transfer(pair, repayAmount);
     }
 
 

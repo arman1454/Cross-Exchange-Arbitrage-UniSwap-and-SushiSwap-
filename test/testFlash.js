@@ -16,15 +16,14 @@ describe("FlashLoan Contract", () => {
     txArbitrage;
 
 
-  const DECIMALS = 18;
+  const DECIMALS = 6;
 
-  const BUSD_WHALE = "0xf977814e90da44bfa03b6295a0616a897441acec";
-  const BUSD = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56";
-  const CAKE = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82";
-  const CROX = "0x2c094F5A7D1146BB93850f629501eB749f6Ed491";
+  const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+  const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+  const LINK = "0x514910771AF9Ca656af840dff83E8264EcF986CA";
 
 
-  const busdInstance = new ethers.Contract(BUSD, abi, provider);
+  const usdcInstance = new ethers.Contract(USDC, abi, provider);
 
   beforeEach(async () => {
 
