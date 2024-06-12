@@ -13,7 +13,7 @@ module.exports = {
   networks: {
     hardhat: {
       forking: {
-        url: "https://bsc-dataseed1.binance.org/",
+        url: "https://eth-mainnet.g.alchemy.com/v2/EeROtFDA4x3sRuhLMPSlPKtp4IHlyL4A",
       },
     },
   },

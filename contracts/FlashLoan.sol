@@ -14,16 +14,20 @@ import "hardhat/console.sol";
 contract FlashLoan {
      using SafeERC20 for IERC20;
     // Factory and Routing Addresses
-    address private constant PANCAKE_FACTORY =
-        0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73;
-    address private constant PANCAKE_ROUTER =
-        0x10ED43C718714eb63d5aA57B78B54704E256024E;
+    address private constant UNISWAP_FACTORY =
+        0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address private constant UNISWAP_ROUTER =
+        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
+    address private constant SUSHISWAP_FACTORY =
+        0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
+    address private constant SUSHISWAP_ROUTER =
+        0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;            
 
     // Token Addresses
-    address private constant BUSD = 0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56;
-    address private constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
-    address private constant CROX = 0x2c094F5A7D1146BB93850f629501eB749f6Ed491;
-    address private constant CAKE = 0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82;
+    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address private constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address private constant LINK = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
     uint256 private deadline = block.timestamp + 1 days;
     uint256 private constant MAX_INT =
@@ -40,8 +44,8 @@ contract FlashLoan {
     }
 
 
-    function placeTrade(address _fromToken,address _toToken,uint _amountIn) private returns(uint){
-        address pair = IUniswapV2Factory(PANCAKE_FACTORY).getPair(
+    function placeTrade(address _fromToken,address _toToken,uint _amountIn, address factory, address router) private returns(uint){
+        address pair = IUniswapV2Factory(factory).getPair(
             _fromToken,
             _toToken
         );
@@ -52,11 +56,11 @@ contract FlashLoan {
         path[0] = _fromToken;
         path[1] = _toToken;
 
-        uint256 amountRequired = IUniswapV2Router01(PANCAKE_ROUTER)
+        uint256 amountRequired = IUniswapV2Router01(router)
             .getAmountsOut(_amountIn, path)[1];
 
     
-        uint256 amountReceived = IUniswapV2Router01(PANCAKE_ROUTER)
+        uint256 amountReceived = IUniswapV2Router01(router)
             .swapExactTokensForTokens(
                 _amountIn, 
                 amountRequired, 
@@ -72,14 +76,18 @@ contract FlashLoan {
     }
 
     function initateArbitrage(address _busdBorrow,uint _amount) external{
-         IERC20(BUSD).safeApprove(address(PANCAKE_ROUTER),MAX_INT);
-         IERC20(CROX).safeApprove(address(PANCAKE_ROUTER),MAX_INT);
-         IERC20(CAKE).safeApprove(address(PANCAKE_ROUTER),MAX_INT);
+         IERC20(WETH).safeApprove(address(UNISWAP_ROUTER),MAX_INT);
+         IERC20(USDC).safeApprove(address(UNISWAP_ROUTER),MAX_INT);
+         IERC20(LINK).safeApprove(address(UNISWAP_ROUTER),MAX_INT);
+
+         IERC20(WETH).safeApprove(address(SUSHISWAP_ROUTER),MAX_INT);
+         IERC20(USDC).safeApprove(address(SUSHISWAP_ROUTER),MAX_INT);
+         IERC20(LINK).safeApprove(address(SUSHISWAP_ROUTER),MAX_INT);
          
-         //liquidity pool of BUSD and WBNB
-         address pair = IUniswapV2Factory(PANCAKE_FACTORY).getPair(
+         //liquidity pool of USDC and WETH
+         address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(
             _busdBorrow,
-            WBNB
+            WETH
          );
 
          require(pair!=address(0),"Pool does not exist");
@@ -94,7 +102,7 @@ contract FlashLoan {
          IUniswapV2Pair(pair).swap(amount0Out, amount1Out, address(this), data);
     }
 
-    function pancakeCall(
+    function uniswapV2Call(
         address _sender,
         uint256 _amount0,
         uint256 _amount1,
@@ -103,7 +111,7 @@ contract FlashLoan {
         // Ensure this request came from the contract
         address token0 = IUniswapV2Pair(msg.sender).token0();
         address token1 = IUniswapV2Pair(msg.sender).token1();
-        address pair = IUniswapV2Factory(PANCAKE_FACTORY).getPair(
+        address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(
             token0,
             token1
         );
@@ -126,17 +134,16 @@ contract FlashLoan {
         uint256 loanAmount = _amount0 > 0 ? _amount0 : _amount1;
 
         // Place Trades
-        uint256 trade1Coin = placeTrade(BUSD, CROX, loanAmount);
-        uint256 trade2Coin = placeTrade(CROX, CAKE, trade1Coin);
-        uint256 trade3Coin = placeTrade(CAKE, BUSD, trade2Coin);
+        uint256 trade1Coin = placeTrade(USDC, LINK, loanAmount, UNISWAP_FACTORY,UNISWAP_ROUTER);
+        uint256 trade2Coin = placeTrade(LINK, USDC, trade1Coin, SUSHISWAP_FACTORY, SUSHISWAP_ROUTER);
 
         // Check Profitability
-        bool profCheck = checkResult(repayAmount, trade3Coin);
+        bool profCheck = checkResult(repayAmount, trade2Coin);
         require(profCheck, "Arbitrage not profitable");
 
         // Pay Myself
-        IERC20 otherToken = IERC20(BUSD);
-        otherToken.transfer(myAddress, trade3Coin - repayAmount);
+        IERC20 otherToken = IERC20(USDC);
+        otherToken.transfer(myAddress, trade2Coin - repayAmount);
 
         // Pay Loan Back
         IERC20(busdBorrow).transfer(pair, repayAmount);
